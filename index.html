@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Secret Calculator – Private Photo Vault</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d14;--panel:#141824;--panel2:#1c2133;--key:#222842;--key-h:#2c3355;--op:#6c5ce7;--op-h:#7f70f5;--fn:#2f3652;--acc:#00cec9;--danger:#ff5d73;--text:#eef0f8;--mute:#8a92ad;--r:18px;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100%;background:radial-gradient(1200px 700px at 20% -10%,#1a1f3a,var(--bg));color:var(--text)}
+button{font:inherit;color:inherit;cursor:pointer;border:0}
+.hidden{display:none!important}
+.view{min-height:100vh;padding:16px;animation:fade .35s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* calculator */
+#calc{display:flex;align-items:center;justify-content:center}
+.calc{width:100%;max-width:400px;background:var(--panel);border:1px solid #262c45;border-radius:28px;padding:18px;box-shadow:0 24px 60px #0008}
+.screen{background:#0d1020;border-radius:var(--r);padding:14px 16px;min-height:150px;display:flex;flex-direction:column;justify-content:flex-end;text-align:right;overflow:hidden;margin-bottom:16px;border:1px solid #232a47}
+.label{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.expr{font-size:1.15rem;color:var(--mute);min-height:1.6em;word-break:break-all;margin-bottom:4px}
+.expr b{color:var(--acc);font-weight:600;padding:0 .12em}
+.main{font-size:clamp(2rem,9vw,2.8rem);font-weight:600;word-break:break-all;line-height:1.15}
+.main.err{font-size:1.2rem;color:var(--danger)}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.keys button{height:clamp(54px,9.5vh,68px);border-radius:16px;background:var(--key);font-size:1.3rem;transition:transform .08s,background .2s}
+.keys button:hover{background:var(--key-h)}
+.keys button:active{transform:scale(.93)}
+.keys .fn{background:var(--fn);color:var(--acc)}
+.keys .op{background:var(--op);font-size:1.5rem}
+.keys .op:hover{background:var(--op-h)}
+.keys .eq{background:linear-gradient(135deg,var(--acc),#0984e3);color:#04121a;font-weight:700}
+.keys .wide{grid-column:span 2}
+.calc{position:relative}.menuBar{display:flex;justify-content:flex-end;margin:-4px 0 6px}.dots{width:40px;height:40px;border-radius:50%;background:transparent;font-size:1.5rem;color:var(--mute);transition:background .2s}.dots:hover{background:var(--panel2);color:var(--text)}.menu{position:absolute;top:56px;right:18px;background:var(--panel2);border:1px solid #2b3250;border-radius:14px;padding:6px;z-index:20;box-shadow:0 12px 30px #0009;animation:fade .15s}.menu button{display:block;width:100%;text-align:left;padding:12px 16px;border-radius:10px;background:transparent;white-space:nowrap}.menu button:hover{background:var(--key-h)}
+/* vault */
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:1100px;margin:0 auto 14px}
+.top h1{font-size:1.25rem;margin:0;flex:1;min-width:140px}
+.btn{padding:10px 16px;border-radius:12px;background:var(--panel2);border:1px solid #2b3250;transition:background .2s,transform .1s}
+.btn:hover{background:var(--key-h)}.btn:active{transform:scale(.96)}
+.btn.pri{background:var(--op);border-color:var(--op)}.btn.pri:hover{background:var(--op-h)}
+.btn.dan{background:var(--danger);border-color:var(--danger);color:#240008}
+.wrap{max-width:1100px;margin:0 auto}
+.note{background:#1a2036;border:1px solid #2b3250;border-left:4px solid #fdcb6e;border-radius:12px;padding:12px 14px;font-size:.88rem;color:#c9cee3;margin-bottom:14px;line-height:1.5}
+.drop{border:2px dashed #3a4268;border-radius:var(--r);padding:22px;text-align:center;color:var(--mute);margin-bottom:16px;transition:.2s}
+.drop.over{border-color:var(--acc);background:#10253022;color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.card{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;background:var(--panel2);cursor:pointer;animation:fade .3s ease}
+.card img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.card:hover img{transform:scale(1.06)}
+.card .x{position:absolute;top:6px;right:6px;width:34px;height:34px;border-radius:50%;background:#000a;font-size:1rem}
+.card .x:hover{background:var(--danger)}
+.empty{text-align:center;color:var(--mute);padding:40px 10px}
+.count{color:var(--mute);font-size:.9rem;margin:0 0 10px}
+/* overlays */
+.ov{position:fixed;inset:0;background:#000d;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;animation:fade .2s}
+.viewer{flex-direction:column;padding:0;background:#000f}
+.viewer img{max-width:100%;max-height:calc(100vh - 130px);object-fit:contain}
+.vbar{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;background:linear-gradient(#000c,transparent)}
+.vbar span{font-size:.85rem;color:#ccd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:#ffffff22;font-size:1.3rem}
+.nav.l{left:10px}.nav.r{right:10px}
+.modal{background:var(--panel);border:1px solid #2b3250;border-radius:20px;padding:20px;width:100%;max-width:380px}
+.modal h2{margin:0 0 12px;font-size:1.1rem}
+.modal label{display:block;font-size:.82rem;color:var(--mute);margin:10px 0 4px}
+.modal input{width:100%;padding:12px;border-radius:10px;border:1px solid #2f3758;background:#0d1020;color:var(--text);font-size:1rem}
+.modal input:focus{outline:2px solid var(--op)}
+.msg{min-height:1.3em;font-size:.85rem;margin-top:10px}.msg.e{color:var(--danger)}.msg.ok{color:var(--acc)}
+.row{display:flex;gap:10px;margin-top:14px}.row .btn{flex:1}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#232a47;border:1px solid #3a4268;padding:10px 16px;border-radius:12px;z-index:90;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .3s;max-width:90vw}
+#toast.show{opacity:1}
+@media (min-width:700px){.view{padding:28px}.grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}.calc{padding:24px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- CALCULATOR -->
+<main id="calc" class="view">
+  <div class="calc">
+    <div class="menuBar"><button class="dots" id="dotsBtn" aria-label="Menu" aria-expanded="false">⋮</button><div class="menu hidden" id="menu"><button id="setPrivacy">🔒 Set privacy</button></div></div>
+    <div class="screen" aria-live="polite">
+      <div class="label" id="lbl">Calculator</div>
+      <div class="expr" id="expr"></div>
+      <div class="main" id="main">0</div>
+    </div>
+    <div class="keys" id="keys">
+      <button class="fn" data-a="ac">AC</button>
+      <button class="fn" data-a="del" aria-label="Delete">⌫</button>
+      <button class="fn" data-a="pct">%</button>
+      <button class="op" data-o="÷">÷</button>
+      <button data-d="7">7</button><button data-d="8">8</button><button data-d="9">9</button>
+      <button class="op" data-o="×">×</button>
+      <button data-d="4">4</button><button data-d="5">5</button><button data-d="6">6</button>
+      <button class="op" data-o="−">−</button>
+      <button data-d="1">1</button><button data-d="2">2</button><button data-d="3">3</button>
+      <button class="op" data-o="+">+</button>
+      <button class="fn" data-a="neg">±</button>
+      <button data-d="0">0</button>
+      <button data-a="dot">.</button>
+      <button class="eq" data-a="eq">=</button>
+    </div>
+  </div>
+</main>
+
+<!-- VAULT -->
+<main id="vault" class="view hidden">
+  <div class="top">
+    <h1>🔒 Private Photo Vault</h1>
+    <button class="btn" id="addBtn">＋ Add photos</button>
+    <button class="btn" id="pwBtn">🔑 Password</button>
+    <button class="btn pri" id="lockBtn">Lock</button>
+  </div>
+  <div class="wrap">
+    <div class="note"><b>Please note:</b> this vault is a convenience lock, not strong security. Photos are stored in this browser’s IndexedDB <b>without encryption</b>, and the password check runs in JavaScript on your device. Anyone with access to your unlocked device or browser data can bypass it. Clearing site data deletes the photos. Don’t store anything you can’t afford to lose or expose.</div>
+    <div class="drop" id="drop">Drag and drop photos here, or use “Add photos”.<br><small>JPG, JPEG, PNG, WEBP · up to 20 MB each</small></div>
+    <input type="file" id="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden>
+    <p class="count" id="count"></p>
+    <div class="grid" id="grid"></div>
+  </div>
+</main>
+
+<!-- Viewer -->
+<div id="viewer" class="ov viewer hidden" role="dialog" aria-label="Photo preview">
+  <div class="vbar"><span id="vname"></span><div style="display:flex;gap:8px"><button class="btn dan" id="vdel">Delete</button><button class="btn" id="vclose">✕</button></div></div>
+  <button class="nav l" id="vprev" aria-label="Previous">‹</button>
+  <img id="vimg" alt="">
+  <button class="nav r" id="vnext" aria-label="Next">›</button>
+</div>
+
+<!-- Password modal -->
+<div id="pwOv" class="ov hidden">
+  <div class="modal">
+    <h2 id="pwTitle">Set privacy password</h2>
+    <div id="oldWrap"><label for="oldPw">Current password</label><input id="oldPw" type="password" inputmode="numeric" autocomplete="off"></div>
+    <label for="newPw">New password (4–12 digits)</label><input id="newPw" type="password" inputmode="numeric" autocomplete="off">
+    <label for="newPw2">Confirm new password</label><input id="newPw2" type="password" inputmode="numeric" autocomplete="off">
+    <div class="msg" id="pwMsg"></div>
+    <div class="row"><button class="btn" id="pwCancel">Cancel</button><button class="btn pri" id="pwSave">Save</button></div>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div id="cfOv" class="ov hidden" style="z-index:70">
+  <div class="modal"><h2>Delete this photo?</h2><p style="color:var(--mute);margin:0">This can’t be undone.</p>
+    <div class="row"><button class="btn" id="cfNo">Cancel</button><button class="btn dan" id="cfYes">Delete</button></div></div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const MAX_BYTES = 20 * 1024 * 1024, OK_TYPES = ["image/jpeg", "image/png", "image/webp"];
+let toastT;
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2800);}
+
+/* ---------- Password (salted SHA-256 hash; never shown in UI) ---------- */
+const Auth = {
+  KEY: "sc_auth_v1", DEFAULT: "1109",
+  async hash(pw, salt){
+    const s = salt + ":" + pw;
+    if (window.crypto && crypto.subtle) {
+      const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+      return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, "0")).join("");
+    }
+    let h = 5381; for (const c of s) h = ((h << 5) + h + c.charCodeAt(0)) >>> 0; return "f" + h; // weak fallback
+  },
+  load(){ try { return JSON.parse(localStorage.getItem(this.KEY)); } catch { return null; } },
+  async verify(pw){
+    const rec = this.load();
+    if (rec && rec.salt && rec.hash) return (await this.hash(pw, rec.salt)) === rec.hash;
+    return pw === this.DEFAULT;
+  },
+  async set(pw){
+    const salt = Array.from(crypto.getRandomValues ? crypto.getRandomValues(new Uint8Array(12)) : [Math.random()*255|0]).join("");
+    const rec = { salt, hash: await this.hash(pw, salt) };
+    try { localStorage.setItem(this.KEY, JSON.stringify(rec)); return true; } catch { return false; }
+  }
+};
+
+/* ---------- IndexedDB ---------- */
+const DB = {
+  db: null,
+  open(){
+    return new Promise((res, rej) => {
+      if (!window.indexedDB) return rej(new Error("IndexedDB is not available in this browser."));
+      const r = indexedDB.open("secret_vault_db", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error || new Error("Could not open storage."));
+    });
+  },
+  tx(mode, fn){
+    return new Promise((res, rej) => {
+      const t = this.db.transaction("photos", mode), s = t.objectStore("photos");
+      const rq = fn(s);
+      t.oncomplete = () => res(rq && rq.result);
+      t.onerror = t.onabort = () => rej(t.error || new Error("Storage error."));
+    });
+  },
+  add(rec){ return this.tx("readwrite", s => s.add(rec)); },
+  all(){ return this.tx("readonly", s => s.getAll()); },
+  del(id){ return this.tx("readwrite", s => s.delete(id)); }
+};
+
+/* ---------- Calculator ---------- */
+const Calc = {
+  tokens: [], cur: "0", done: false, err: false,
+  ops: ["+", "−", "×", "÷"],
+  reset(){ this.tokens = []; this.cur = "0"; this.done = false; this.err = false; },
+  digit(d){
+    if (this.done || this.err) this.reset();
+    if (this.cur.replace(/[-.]/g, "").length >= 15) return;
+    this.cur = (this.cur === "0" || this.cur === "") ? d : (this.cur === "-0" ? "-" + d : this.cur + d);
+  },
+  dot(){
+    if (this.done || this.err) this.reset();
+    if (this.cur === "") this.cur = "0";
+    if (!this.cur.includes(".")) this.cur += ".";
+  },
+  op(o){
+    if (this.err) this.reset();
+    if (this.done) { this.tokens = [this.cur]; this.cur = ""; this.done = false; this.tokens.push(o); return; }
+    if (this.cur === "") { this.tokens[this.tokens.length - 1] = o; return; }
+    this.tokens.push(this.cur, o); this.cur = "";
+  },
+  neg(){
+    if (this.err) return;
+    if (this.done) this.done = false, this.tokens = [];
+    if (this.cur === "" || this.cur === "0") return;
+    this.cur = this.cur.startsWith("-") ? this.cur.slice(1) : "-" + this.cur;
+  },
+  pct(){
+    if (this.err || this.cur === "") return;
+    if (this.done) { this.done = false; this.tokens = []; }
+    let v = parseFloat(this.cur); if (isNaN(v)) return;
+    const prev = this.tokens.length >= 2 ? parseFloat(this.tokens[this.tokens.length - 2]) : null;
+    const o = this.tokens[this.tokens.length - 1];
+    v = (prev !== null && (o === "+" || o === "−")) ? prev * v / 100 : v / 100;
+    this.cur = this.fmt(v);
+  },
+  del(){
+    if (this.done || this.err) return this.reset();
+    if (this.cur !== "") { this.cur = this.cur.slice(0, -1); if (this.cur === "" || this.cur === "-") this.cur = this.tokens.length ? "" : "0"; }
+    else { this.tokens.pop(); this.cur = this.tokens.pop() || "0"; }
+  },
+  fmt(n){ return String(parseFloat(n.toPrecision(12))); },
+  evaluate(list){
+    const t = list.slice();
+    for (const group of [["×", "÷"], ["+", "−"]]) {
+      for (let i = 1; i < t.length; i += 2) {
+        if (group.includes(t[i])) {
+          const a = parseFloat(t[i - 1]), b = parseFloat(t[i + 1]);
+          if (t[i] === "÷" && b === 0) throw new Error("Cannot divide by zero");
+          const r = t[i] === "×" ? a * b : t[i] === "÷" ? a / b : t[i] === "+" ? a + b : a - b;
+          t.splice(i - 1, 3, this.fmt(r)); i -= 2;
+        }
+      }
+    }
+    return t[0];
+  },
+  equals(){
+    if (this.err || this.done) return;
+    if (this.cur === "") { this.tokens.pop(); this.cur = this.tokens.pop() || "0"; }
+    const list = [...this.tokens, this.cur];
+    if (list.length === 1) return;
+    try {
+      const res = this.evaluate(list);
+      this.lastExpr = list.join(" ") + " =";
+      this.cur = res; this.tokens = []; this.done = true;
+    } catch (e) { this.reset(); this.err = e.message || "Error"; }
+  },
+  render(){
+    const ex = $("expr"), mn = $("main"), lb = $("lbl");
+    mn.classList.toggle("err", !!this.err);
+    if (this.err) { lb.textContent = "Error"; ex.textContent = ""; mn.textContent = this.err; return; }
+    const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    if (this.done) {
+      lb.textContent = "Result";
+      ex.innerHTML = "Expression: " + this.lastExpr.split(" ").map(p => this.ops.includes(p) || p === "=" ? "<b>" + p + "</b>" : esc(p)).join(" ");
+      mn.textContent = "Result: " + this.cur;
+    } else {
+      lb.textContent = "Calculator";
+      const parts = [...this.tokens]; if (this.cur !== "") parts.push(this.cur);
+      ex.innerHTML = parts.map(p => this.ops.includes(p) ? "<b>" + p + "</b>" : esc(p)).join(" ");
+      mn.textContent = this.cur === "" ? this.tokens[this.tokens.length - 2] || "0" : this.cur;
+    }
+  },
+  async tryUnlock(){
+    // Only a bare number typed with no operators counts as a password attempt.
+    if (this.done || this.err || this.tokens.length || !/^\d{4,12}$/.test(this.cur)) return false;
+    try { return await Auth.verify(this.cur); } catch { return false; }
+  }
+};
+
+async function press(fn){
+  if (fn === "eq") {
+    if (await Calc.tryUnlock()) { Calc.reset(); Calc.render(); openVault(); return; }
+    Calc.equals();
+  } else fn();
+  Calc.render();
+}
+$("keys").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.d) press(() => Calc.digit(b.dataset.d));
+  else if (b.dataset.o) press(() => Calc.op(b.dataset.o));
+  else switch (b.dataset.a) {
+    case "ac": press(() => Calc.reset()); break;
+    case "del": press(() => Calc.del()); break;
+    case "pct": press(() => Calc.pct()); break;
+    case "neg": press(() => Calc.neg()); break;
+    case "dot": press(() => Calc.dot()); break;
+    case "eq": press("eq"); break;
+  }
+});
+document.addEventListener("keydown", e => {
+  const vaultOpen = !$("vault").classList.contains("hidden");
+  if (vaultOpen) {
+    if (!$("viewer").classList.contains("hidden")) {
+      if (e.key === "Escape") closeViewer(); else if (e.key === "ArrowLeft") step(-1); else if (e.key === "ArrowRight") step(1);
+    }
+    return;
+  }
+  if (e.ctrlKey || e.metaKey || e.altKey || !$("pwOv").classList.contains("hidden")) return;
+  const k = e.key, map = { "+": "+", "-": "−", "*": "×", "x": "×", "/": "÷" };
+  if (/^\d$/.test(k)) press(() => Calc.digit(k));
+  else if (map[k]) { e.preventDefault(); press(() => Calc.op(map[k])); }
+  else if (k === "." || k === ",") press(() => Calc.dot());
+  else if (k === "%") press(() => Calc.pct());
+  else if (k === "Enter" || k === "=") { e.preventDefault(); press("eq"); }
+  else if (k === "Backspace") press(() => Calc.del());
+  else if (k === "Escape" || k === "Delete") press(() => Calc.reset());
+});
+
+/* ---------- Vault ---------- */
+let photos = [], urls = new Map(), curIdx = -1, pendingDel = null;
+const urlFor = p => { if (!urls.has(p.id)) urls.set(p.id, URL.createObjectURL(p.blob)); return urls.get(p.id); };
+function revokeAll(){ urls.forEach(u => URL.revokeObjectURL(u)); urls.clear(); }
+
+async function openVault(){
+  $("calc").classList.add("hidden"); $("vault").classList.remove("hidden");
+  try { if (!DB.db) await DB.open(); await refresh(); }
+  catch (e) { toast(e.message || "Storage is unavailable."); renderGrid(); }
+}
+function lock(){
+  closeViewer(); $("pwOv").classList.add("hidden"); $("cfOv").classList.add("hidden");
+  $("vault").classList.add("hidden"); $("calc").classList.remove("hidden");
+  revokeAll(); photos = []; $("grid").innerHTML = ""; Calc.reset(); Calc.render();
+}
+async function refresh(){ photos = (await DB.all()).sort((a, b) => b.added - a.added); renderGrid(); }
+function renderGrid(){
+  const g = $("grid"); g.innerHTML = "";
+  $("count").textContent = photos.length ? photos.length + (photos.length === 1 ? " photo" : " photos") : "";
+  if (!photos.length) { g.innerHTML = '<div class="empty" style="grid-column:1/-1">No photos yet. Add some to get started.</div>'; return; }
+  photos.forEach((p, i) => {
+    const c = document.createElement("div"); c.className = "card";
+    const img = document.createElement("img"); img.src = urlFor(p); img.alt = p.name; img.loading = "lazy";
+    const x = document.createElement("button"); x.className = "x"; x.textContent = "🗑"; x.setAttribute("aria-label", "Delete " + p.name);
+    x.onclick = ev => { ev.stopPropagation(); askDelete(p.id); };
+    c.onclick = () => openViewer(i); c.append(img, x); g.append(c);
+  });
+}
+async function addFiles(list){
+  const files = Array.from(list || []); if (!files.length) return;
+  let ok = 0, bad = [];
+  for (const f of files) {
+    const extOk = /\.(jpe?g|png|webp)$/i.test(f.name);
+    if (!OK_TYPES.includes(f.type) || !extOk) { bad.push(f.name + " (unsupported type)"); continue; }
+    if (f.size > MAX_BYTES) { bad.push(f.name + " (over 20 MB)"); continue; }
+    if (f.size === 0) { bad.push(f.name + " (empty)"); continue; }
+    try { await DB.add({ name: f.name, type: f.type, size: f.size, added: Date.now() + ok, blob: f }); ok++; }
+    catch (e) { bad.push(f.name + " (storage full or blocked)"); }
+  }
+  try { await refresh(); } catch {}
+  toast((ok ? ok + " photo" + (ok > 1 ? "s" : "") + " saved. " : "") + (bad.length ? "Skipped: " + bad.slice(0, 2).join(", ") + (bad.length > 2 ? " +" + (bad.length - 2) + " more" : "") : ""));
+}
+$("addBtn").onclick = () => $("file").click();
+$("file").onchange = e => { addFiles(e.target.files); e.target.value = ""; };
+const drop = $("drop");
+["dragenter", "dragover"].forEach(n => drop.addEventListener(n, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(n => drop.addEventListener(n, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => addFiles(e.dataTransfer.files));
+drop.onclick = () => $("file").click();
+$("lockBtn").onclick = lock;
+document.addEventListener("visibilitychange", () => { if (document.hidden && !$("vault").classList.contains("hidden")) lock(); });
+
+/* viewer */
+function openViewer(i){ curIdx = i; showCur(); $("viewer").classList.remove("hidden"); }
+function showCur(){ const p = photos[curIdx]; if (!p) return closeViewer(); $("vimg").src = urlFor(p); $("vimg").alt = p.name; $("vname").textContent = p.name + "  (" + (curIdx + 1) + "/" + photos.length + ")"; }
+function closeViewer(){ $("viewer").classList.add("hidden"); $("vimg").removeAttribute("src"); curIdx = -1; }
+function step(d){ if (!photos.length) return; curIdx = (curIdx + d + photos.length) % photos.length; showCur(); }
+$("vclose").onclick = closeViewer; $("vprev").onclick = () => step(-1); $("vnext").onclick = () => step(1);
+$("vdel").onclick = () => photos[curIdx] && askDelete(photos[curIdx].id);
+$("viewer").addEventListener("click", e => { if (e.target.id === "viewer") closeViewer(); });
+let tx0 = null;
+$("viewer").addEventListener("touchstart", e => tx0 = e.touches[0].clientX, { passive: true });
+$("viewer").addEventListener("touchend", e => { if (tx0 === null) return; const dx = e.changedTouches[0].clientX - tx0; if (Math.abs(dx) > 60) step(dx < 0 ? 1 : -1); tx0 = null; });
+
+/* delete */
+function askDelete(id){ pendingDel = id; $("cfOv").classList.remove("hidden"); }
+$("cfNo").onclick = () => { pendingDel = null; $("cfOv").classList.add("hidden"); };
+$("cfYes").onclick = async () => {
+  const id = pendingDel; $("cfOv").classList.add("hidden"); pendingDel = null; if (id == null) return;
+  try {
+    await DB.del(id); const u = urls.get(id); if (u) { URL.revokeObjectURL(u); urls.delete(id); }
+    const wasViewing = curIdx >= 0; await refresh(); toast("Photo deleted.");
+    if (wasViewing) { if (!photos.length) closeViewer(); else { curIdx = Math.min(curIdx, photos.length - 1); showCur(); } }
+  } catch { toast("Could not delete the photo."); }
+};
+
+/* password change */
+function pwMsg(t, ok){ const m = $("pwMsg"); m.textContent = t; m.className = "msg " + (ok ? "ok" : "e"); }
+let pwFromCalc = false;
+function openPw(fromCalc){
+  pwFromCalc = fromCalc; const has = !!Auth.load();
+  ["oldPw", "newPw", "newPw2"].forEach(i => $(i).value = ""); pwMsg("", true);
+  $("oldWrap").classList.toggle("hidden", !has && fromCalc);
+  $("pwTitle").textContent = has ? "Change password" : "Set privacy password";
+  $("pwOv").classList.remove("hidden");
+  ((has || !fromCalc) ? $("oldPw") : $("newPw")).focus();
+}
+$("pwBtn").onclick = () => openPw(false);
+$("pwCancel").onclick = () => $("pwOv").classList.add("hidden");
+$("pwSave").onclick = async () => {
+  const o = $("oldPw").value, n = $("newPw").value, c = $("newPw2").value;
+  const needOld = !$("oldWrap").classList.contains("hidden");
+  if ((needOld && !o) || !n || !c) return pwMsg("Please fill in all fields.");
+  if (needOld && !(await Auth.verify(o))) return pwMsg("Current password is incorrect.");
+  if (!/^\d{4,12}$/.test(n)) return pwMsg("New password must be 4–12 digits (numbers only, so it works on the calculator).");
+  if (n === o) return pwMsg("New password must be different from the current one.");
+  if (n !== c) return pwMsg("New passwords don’t match.");
+  if (await Auth.set(n)) { pwMsg("Password saved.", true); setTimeout(() => { $("pwOv").classList.add("hidden"); if (pwFromCalc) { toast("Privacy set. Opening vault…"); openVault(); } }, 800); }
+  else pwMsg("Couldn’t save the password. Browser storage may be blocked.");
+};
+["pwOv", "cfOv"].forEach(id => $(id).addEventListener("click", e => { if (e.target.id === id) e.target.classList.add("hidden"); }));
+
+const menu = $("menu"), dots = $("dotsBtn");
+dots.onclick = e => { e.stopPropagation(); const closed = menu.classList.toggle("hidden"); dots.setAttribute("aria-expanded", String(!closed)); };
+document.addEventListener("click", () => { menu.classList.add("hidden"); dots.setAttribute("aria-expanded", "false"); });
+$("setPrivacy").onclick = () => { menu.classList.add("hidden"); openPw(true); };
+
+Calc.render();
+</script>
+</body>
+</html>
